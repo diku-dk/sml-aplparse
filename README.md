@@ -8,7 +8,7 @@ This Standard ML library implements an APL parser.
 
   - **signature** [`REGION`](lib/github.com/diku-dk/sml-aplparse/REGION.sig)
   - **signature** [`APL_PARSE`](lib/github.com/diku-dk/sml-aplparse/APL_PARSE.sig)
-  - **signature** [`PARSE_COMB`](lib/github.com/diku-dk/sml-unicode/PARSE_COMB.sig)
+  - **signature** [`PARSE_COMB`](lib/github.com/diku-dk/sml-aplparse/PARSE_COMB.sig)
   - **structure** `Region` :> `REGION`
   - **structure** `AplParse` :> `APL_PARSE`
   - **structure** `ParseComb` :> `PARSE_COMB`
