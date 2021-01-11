@@ -1,5 +1,5 @@
 package github.com/diku-dk/sml-aplparse
 
 require {
-  github.com/diku-dk/sml-unicode 0.0.0-20210111173737+f873b98e8fd495ce5e12964ab2b33ca6d2eb5325
+  github.com/diku-dk/sml-unicode 0.1.0 #f873b98e8fd495ce5e12964ab2b33ca6d2eb5325
 }
