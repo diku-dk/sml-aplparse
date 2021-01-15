@@ -1,4 +1,4 @@
-# sml-aplparse [![Build Status](https://travis-ci.org/diku-dk/sml-aplparse.svg?branch=master)](https://travis-ci.org/diku-dk/sml-aplparse)
+# sml-aplparse [![CI](https://github.com/diku-dk/sml-aplparse/workflows/CI/badge.svg)](https://github.com/diku-dk/sml-aplparse/actions)
 
 This Standard ML library implements an APL parser.
 
