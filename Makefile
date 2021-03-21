@@ -2,12 +2,12 @@ MLCOMP ?= mlkit
 SMLPKG ?= smlpkg
 
 MLLIB=lib/github.com/diku-dk/sml-aplparse
-FILENAMES=test/test.mlb test/test.sml aplparse.mlb REGION.sig Region.sml AplLex.sml AplParse.sml ParseComb.sml PARSE_COMB.sig
+FILENAMES=test/test.mlb test/test.sml aplparse.mlb AplLex.sml AplParse.sml
 FILES=$(FILENAMES:%=$(MLLIB)/%)
 
 all: $(MLLIB)/test/test.exe
 
-$(MLLIB)/test/test.exe: $(FILES) Makefile lib/github.com/diku-dk/sml-unicode
+$(MLLIB)/test/test.exe: $(FILES) Makefile lib/github.com/diku-dk/sml-unicode lib/github.com/diku-dk/sml-parse
 	$(MLCOMP) -output $@ $<
 
 TESTFILES=test.apl test1.apl test2.apl test3.apl test4.apl test5.apl \
@@ -26,4 +26,7 @@ clean:
 	rm -rf $(MLLIB)/*~ $(MLLIB)/MLB
 
 lib/github.com/diku-dk/sml-unicode:
+	$(SMLPKG) sync
+
+lib/github.com/diku-dk/sml-parse:
 	$(SMLPKG) sync

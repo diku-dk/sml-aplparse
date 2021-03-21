@@ -89,7 +89,7 @@ fun complexFromString s =
                        | _ => NONE)
          | _ => NONE
     end
-             
+
 (* pr_chars : word list -> string *)
 fun pr_chars ws =
     if List.all (fn w => w < 0w128) ws then
@@ -197,7 +197,7 @@ fun pr_token t =
        | Fac => "Fac"
        | Thorn => "Thorn"
 
-type filename = Region.filename
+type srcname = Region.srcname
 type loc = Region.loc
 type reg = Region.reg
 fun loc0 f : loc = (1,0,f) (* line 1, char 0 *)
@@ -327,7 +327,7 @@ fun isWhiteSpace w =
     | NONE => false
 
 (* lexError : loc -> string -> 'a *)
-fun lexError loc s = 
+fun lexError loc s =
     let val msg = "Lexical error at location " ^ Region.ppLoc loc ^ ": " ^ s
     in raise Fail msg
     end
@@ -336,7 +336,7 @@ type procstate = (token * reg) list * state * loc
 
 fun last "" = NONE
   | last s = SOME(String.sub(s,size s - 1))
-                                                  
+
 (* process : word * procstate -> procstate *)
 fun process0 (w,(tokens,state,loc)) =
     let val elem = lexWord w
@@ -352,12 +352,12 @@ fun process0 (w,(tokens,state,loc)) =
                                                     else lexError loc "ilformed integer"
             | (DoubleS(s,l0,_), SOME (Letter c)) => if c = #"j" orelse c = #"J" then (tokens,ComplexJS(s ^ "j",l0,loc),Region.next loc)
                                                     else lexError loc "ilformed double"
-            | (ComplexJS(s,l0,_), SOME Macron)   => (tokens, ComplexIS(s ^ "-",l0,loc), Region.next loc) 
-            | (ComplexJS(s,l0,_), SOME (Digit c))=> (tokens, ComplexIS(s ^ String.str c,l0,loc), Region.next loc) 
-            | (ComplexJS(s,l0,_), SOME Dot)      => (tokens, ComplexS(s ^ "0.",l0,loc), Region.next loc) 
-            | (ComplexIS(s,l0,_),SOME (Digit c)) => (tokens, ComplexIS(s ^ String.str c,l0,loc), Region.next loc) 
-            | (ComplexIS(s,l0,_), SOME Dot)      => (tokens, ComplexS(if last s = SOME #"-" then s ^ "0." else s ^ ".",l0,loc), Region.next loc) 
-            | (ComplexS(s,l0,_), SOME (Digit c)) => (tokens, ComplexS(s ^ String.str c,l0,loc), Region.next loc) 
+            | (ComplexJS(s,l0,_), SOME Macron)   => (tokens, ComplexIS(s ^ "-",l0,loc), Region.next loc)
+            | (ComplexJS(s,l0,_), SOME (Digit c))=> (tokens, ComplexIS(s ^ String.str c,l0,loc), Region.next loc)
+            | (ComplexJS(s,l0,_), SOME Dot)      => (tokens, ComplexS(s ^ "0.",l0,loc), Region.next loc)
+            | (ComplexIS(s,l0,_),SOME (Digit c)) => (tokens, ComplexIS(s ^ String.str c,l0,loc), Region.next loc)
+            | (ComplexIS(s,l0,_), SOME Dot)      => (tokens, ComplexS(if last s = SOME #"-" then s ^ "0." else s ^ ".",l0,loc), Region.next loc)
+            | (ComplexS(s,l0,_), SOME (Digit c)) => (tokens, ComplexS(s ^ String.str c,l0,loc), Region.next loc)
             | (StartS,        SOME Dot)          => (tokens, SymbS(Dot,loc,loc), Region.next loc)
             | (IntS(s,l0,_),  SOME Dot)          => (tokens, DoubleS(if s = "-" then "-0." else s ^ ".",l0,loc), Region.next loc)
             | (StartS,        SOME (Letter c))   => (tokens, IdS(String.str c,loc,loc), Region.next loc)
@@ -416,9 +416,9 @@ fun process0 (w,(tokens,state,loc)) =
 fun pr_tokens ts = String.concatWith " " (List.map pr_token ts)
 
 (* lex : string -> string -> (token * reg) list *)
-fun lex filename s =
+fun lex srcname s =
     let val s = Utf8.fromString (s^" ")  (* pad some whitespace to keep the lexer happy *)
-        val (tokens,state,_) = Utf8.foldl process0 (nil,StartS,Region.loc0 filename) s
+        val (tokens,state,_) = Utf8.foldl process0 (nil,StartS,Region.loc0 srcname) s
     in rev tokens
     end
 end

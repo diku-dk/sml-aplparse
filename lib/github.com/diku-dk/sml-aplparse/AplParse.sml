@@ -6,13 +6,14 @@ fun debug f =
     else ()
 
 open AplAst
-structure PComb = ParseComb(type token=token 
-                            val pr_token = AplLex.pr_token)
+
+structure P = Parse(type token=token
+                    val pp_token = AplLex.pr_token)
 
 type reg = Region.reg
 val botreg = (Region.botloc,Region.botloc)
 
-open PComb infix >>> ->> >>- ?? ??? || oo oor
+open P infix >>> ->> >>- ?? ??? || oo oor
 
 (* eat Newline's from the list of tokens *)
 (* p_ws : unit p  *)
@@ -41,7 +42,7 @@ fun p_double nil = NO (Region.botloc,fn () => "expecting double but found end-of
 fun p_complex nil = NO (Region.botloc,fn () => "expecting complex number but found end-of-file")
   | p_complex ((L.Complex d,r)::ts) = OK(d,r,ts)
   | p_complex ((t,r:reg)::_) = NO (#1 r, fn() => ("expecting complex number but found token " ^ AplLex.pr_token t))
-                                 
+
 (* p_int : int p *)
 fun p_int nil = NO (Region.botloc,fn () => "expecting integer but found end-of-file")
   | p_int ((L.Int i,r)::ts) = OK(i,r,ts)
@@ -116,10 +117,10 @@ fun is_symb t =
 
 (* p_symb : token p *)
 fun p_symb nil = NO (Region.botloc,fn()=>"reached end-of-file")
-  | p_symb ((t,r:reg)::ts) = 
-    if is_symb t then OK(t,r,ts) 
+  | p_symb ((t,r:reg)::ts) =
+    if is_symb t then OK(t,r,ts)
     else NO (#1 r,
-             fn () => ("expecting symbol but found token " ^ 
+             fn () => ("expecting symbol but found token " ^
                        AplLex.pr_token t))
 
 (* APL Parsing *)
@@ -145,7 +146,7 @@ fun p_symb nil = NO (Region.botloc,fn()=>"reached end-of-file")
    indices ::= expr < ; indices >
              | ; indices
 
-   indexable ::= INTEGER | DOUBLE | STRING | SYMBOL 
+   indexable ::= INTEGER | DOUBLE | STRING | SYMBOL
                | ( expr ) | { body }
 *)
 
@@ -170,18 +171,18 @@ and p_guard ts =
     (p_expr ??? (eat L.Colon ->> p_expr)) GuardE ts
 
 and p_expr ts =
-    (  p_assignment 
+    (  p_assignment
     || (p_seq ?? p_assignment) seq
     ) ts
 
 and p_assignment ts =
-    ( ((((p_id || p_quad) oo (fn x => (x,nil))) ?? p_sqindices) (fn ((x,_),xs) => (x,xs))) >>- 
+    ( ((((p_id || p_quad) oo (fn x => (x,nil))) ?? p_sqindices) (fn ((x,_),xs) => (x,xs))) >>-
       eat L.Larrow >>> p_expr oor (fn (((x,xs),b),r) => AssignE(x,xs,b,r)) ) ts
 
 and p_seq ts =
     (p_item ?? p_seq) unres ts
 
-and p_sqindices ts = 
+and p_sqindices ts =
     (eat L.Lsqbra ->> p_indices >>- eat L.Rsqbra) ts
 
 and p_item ts =
@@ -206,9 +207,9 @@ and p_indexable ts =
 (* parse0 : (token * reg) list -> (exp, locerr) either *)
 fun parse0 ts =
     case p_body ts of
-      OK(ast,r,ts) => 
+      OK(ast,r,ts) =>
       (case ts of nil => OK ast
-                | ((t,r)::_) => NO (#1 r, fn() => ("token " ^ AplLex.pr_token t 
+                | ((t,r)::_) => NO (#1 r, fn() => ("token " ^ AplLex.pr_token t
                                                    ^ " not expected")))
     | NO l => NO l
 
@@ -256,7 +257,7 @@ fun classify e : class =
     | App2E (e0,e1,e2,_) => lub (classify e0) (lub (classify e1) (classify e2))
     | AppOpr1E (_,e0,e1,_) => lub (classify e0) (classify e1)
     | AppOpr2E (_,e0,e1,e2,_) => lub (classify e0) (lub (classify e1) (classify e2))
-    | AssignE (v,is,e,_) => 
+    | AssignE (v,is,e,_) =>
       foldl(fn (NONE, a) => a
              | (SOME e, a) => lub a (classify e)) (classify e) is
     | SeqE(es,_) => foldl (fn (e,a) => lub a (classify e)) bot es
@@ -292,7 +293,7 @@ end
 fun resolve_vectors gs =
     let fun vec [(e,s)] = (e,s)
           | vec nil = raise Fail "resolve_vectors.vec"
-          | vec ((e,s)::gs) = 
+          | vec ((e,s)::gs) =
             let val es = List.map #1 gs
                 val r = reg_exps (reg_exp e) es
             in (VecE(e::es,r),s)
@@ -318,15 +319,15 @@ fun resolve_vectors gs =
 type spec = Class.class list
 type env = (id * spec) list
 val emp = []
-fun lookup (E:env) id : spec option = 
+fun lookup (E:env) id : spec option =
     case List.find (fn (id',_) => id=id') E of
       SOME (_,s) => SOME s
     | NONE => NONE
 fun add E (id,spec) = (id,spec)::E
 fun plus (E,E') = E'@E
 fun pr_spec s = "{" ^ String.concatWith "," (List.map Class.pr_class s) ^ "}"
-fun pr_env E = 
-    "{" ^ 
+fun pr_env E =
+    "{" ^
     String.concatWith "," (List.map (fn (id,s) => (pr_id id ^ ":" ^ pr_spec s)) E)
     ^ "}"
 
@@ -378,13 +379,13 @@ fun resolve E e =
     | ComplexE _ => (e,emp,valuespec)
     | VecE _ => (e,emp,valuespec)
     | StrE s => (e,emp,valuespec)
-    | IdE (id,r) => 
+    | IdE (id,r) =>
       (case lookup E id of
          SOME s => (e,emp,s)
        | NONE => resolveErr r ("The identifier " ^ pr_id id ^ " is not in the environment"))
-    | LambE (_,e,r) => 
+    | LambE (_,e,r) =>
       let val c = Class.classify e
-          val (e,_,_) = resolve (lamb_env@E) e          
+          val (e,_,_) = resolve (lamb_env@E) e
       in (LambE(c,e,r),emp,[c])
       end
     | App1E _ => raise Fail "resolve:App1"
@@ -395,14 +396,14 @@ fun resolve E e =
       let val (e,E',s) = resolve E e
           val (is,E1) =
               foldl (fn (NONE, (is,E0)) => (NONE::is,E0)
-                      | (SOME i, (is, E0)) => 
+                      | (SOME i, (is, E0)) =>
                         let val (i,E2,_) = resolve (E0@E'@E) i  (* memo: maybe check for valuespec *)
                         in (SOME i::is,E2@E0)
                         end) (nil,emp) is
           val E' = [(Var v,s)]
       in (AssignE(v,rev is,e,r),E',s)
       end
-    | SeqE (es,r) => 
+    | SeqE (es,r) =>
       let val (es,E,s) =
               foldl (fn (e,(es,E0,_)) =>
                         let val () = debug(fn () => "Resolving:\n " ^ pr_exp e ^ "\n")
@@ -411,7 +412,7 @@ fun resolve E e =
                         end) (nil,emp,valuespec) es
       in (SeqE (rev es,r),E,s)
       end
-    | ParE (e,_) => 
+    | ParE (e,_) =>
       let val (e,E,s) = resolve E e
       in (e,E,s)
       end
@@ -423,7 +424,7 @@ fun resolve E e =
     | IndexE (e0,is,r) =>
       let val (is,E1) =
               foldl (fn (NONE, (is,E0)) => (NONE::is,E0)
-                      | (SOME i, (is, E0)) => 
+                      | (SOME i, (is, E0)) =>
                         let val (i,E2,_) = resolve (E0@E) i  (* memo: maybe check for valuespec *)
                         in (SOME i::is,E2@E0)
                         end) (nil,emp) is
@@ -431,7 +432,7 @@ fun resolve E e =
       in (IndexE(e0,rev is,r),E0@E1,valuespec)
       end
     | UnresE (es,r) =>
-      let val (gs, E') = foldl (fn (e,(gs,E')) => 
+      let val (gs, E') = foldl (fn (e,(gs,E')) =>
                                    let val (e,E'',s) = resolve (E'@E) e
                                    in ((e,s)::gs,E''@E')
                                    end) (nil,emp) (rev es)
@@ -491,7 +492,7 @@ and res0 r gs =
          | NONE => if isFun1 g2 andalso isVal g1 then res0 r [app1(g2,g1)]
                    (*else if isOpr1 g1 andalso isFun g2 then res0 r [appOpr1(g1,g2)]*)
                    else resolveErr (Region.plus "res0.1" (reg_g g2) (reg_g g1)) "could not resolve Unres node")
-    | g1::g2::g3::gs =>   
+    | g1::g2::g3::gs =>
       let fun cont() =
               if isFun1 g2 then res0 r (app1(g2,g1)::g3::gs)   (* ... b f1 a ==> ... b f1(a) *)
               else if isOpr1 g2 then
@@ -516,7 +517,7 @@ and res0 r gs =
                       | (NONE, NONE, r) => resolveErr r ("expecting f and h in an fgh-train both to be either monadic or dyadic; got " ^ pr_g g3 ^ " and " ^ pr_g g1)
                   else resolveErr (reg_g g2) ("expecting dyadic function in train but got: " ^ pr_g g2)
                 | NONE => resolveErr (reg_g g2) ("expecting function in train but got: " ^ pr_g g2))
-          | _ =>  (* it is not a train *) 
+          | _ =>  (* it is not a train *)
             if isOpr2 g3 then                                     (* ... o2 f a *)
               case resFun gs of
                   SOME(g4::gs) => res0 r (g1::appOpr2(g3,g4,g2)::gs)
@@ -552,12 +553,12 @@ and try3Train g1 g2 g3 gs =
                val g_m = if isFun1 g1 andalso isFun1 g3 then (* monadic fgh-train *)
                            trainWrap (fn () => app2(g2,app1(g3,omega_g),app1(g1,omega_g))) Class.fun1 r gs
                          else NONE
-               val g_d = if isFun2 g1 andalso isFun2 g3 then 
+               val g_d = if isFun2 g1 andalso isFun2 g3 then
                            trainWrap (fn () => app2(g2,app2(g3,alpha_g,omega_g),app2(g1,alpha_g,omega_g))) Class.fun2 r gs
                          else NONE
            in (g_m, g_d, r)
            end
-         | NONE => 
+         | NONE =>
            let val r = Region.plus "train1" (reg_g g3) r21
                val g_m = if isFun1 g1 andalso isVal g3 then (* monadic Agh-train *)
                            trainWrap (fn () => app2(g2,g3,app1(g1,omega_g))) Class.fun1 r gs
@@ -574,16 +575,16 @@ and resFun gs =
     case gs of
       [] => raise Fail "resFun: impossible"
     | [g] => if isFun g then SOME gs else
-             if isOpr1 g then SOME [(LambE(Class.fun2,#1(app1(appOpr1(g,alpha_g),omega_g)),reg_g g), [Class.fun2])] else 
+             if isOpr1 g then SOME [(LambE(Class.fun2,#1(app1(appOpr1(g,alpha_g),omega_g)),reg_g g), [Class.fun2])] else
              NONE
     | g1::g2::gs' =>
       if isOpr2 g2 then NONE  (*raise Fail "resFun: dyadic operators not yet supported"*)
-      else if isFun g1 then SOME gs 
+      else if isFun g1 then SOME gs
       else if isOpr1 g1 then
         (case resFun (g2::gs') of
            SOME(g2::gs') => SOME(appOpr1(g1,g2)::gs')
          | SOME nil => raise Fail "resFun: impossible"
-         | NONE => if isVal g2 then (* convert g1 to a fun2 function *) 
+         | NONE => if isVal g2 then (* convert g1 to a fun2 function *)
                      let val c = Class.fun2
                          val r = reg_g g1
                          val g = app1(appOpr1(g1,alpha_g),omega_g)
@@ -666,5 +667,5 @@ fun parse E ts =
     | NO (l,f) => raise ParseErr (l,f())
 
 open Class
-fun add (id,l) e = (Var id, l) :: e 
+fun add (id,l) e = (Var id, l) :: e
 end

@@ -1,4 +1,5 @@
 local $(SML_LIB)/basis/basis.mlb
       ../aplparse.mlb
+      ../../sml-parse/parse.mlb
 in test.sml
 end
