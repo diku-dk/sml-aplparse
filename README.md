@@ -6,12 +6,11 @@ This Standard ML library implements an APL parser.
 
 - `lib/github.com/diku-dk/sml-aplparse/aplparse.mlb`:
 
-  - **signature** [`REGION`](lib/github.com/diku-dk/sml-aplparse/REGION.sig)
   - **signature** [`APL_PARSE`](lib/github.com/diku-dk/sml-aplparse/APL_PARSE.sig)
-  - **signature** [`PARSE_COMB`](lib/github.com/diku-dk/sml-aplparse/PARSE_COMB.sig)
-  - **structure** `Region` :> `REGION`
+  - **structure** [`AplLex`](lib/github.com/diku-dk/sml-aplparse/AplLex.sml)
+  - **structure** [`AplAst`](lib/github.com/diku-dk/sml-aplparse/AplAst.sml)
   - **structure** `AplParse` :> `APL_PARSE`
-  - **structure** `ParseComb` :> `PARSE_COMB`
+
 
 ## Use of the package
 
