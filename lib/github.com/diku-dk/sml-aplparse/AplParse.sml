@@ -11,47 +11,49 @@ structure P = Parse(type token=token
                     val pp_token = AplLex.pr_token)
 
 type reg = Region.reg
-val botreg = (Region.botloc,Region.botloc)
+val botreg = Region.emp
 
-open P infix >>> ->> >>- ?? ??? || oo oor
+open P
+
+infixr <|> *> <*
+infix >>> ?? ??? <*> <$> <$$> >>=
+
+fun % x = delay x ()
 
 (* eat Newline's from the list of tokens *)
-(* p_ws : unit p  *)
-fun p_ws ts = (eat L.Newline ?? p_ws) #1 ts
+fun p_ws () : unit p =
+    (eat L.Newline ?? %p_ws) #1
 
 (* Seperators: either whitespace or a Diamond *)
-(* p_sep : unit p *)
-val p_sep = p_ws || eat L.Diamond
+val p_sep : unit p =
+    choice [
+      %p_ws,
+      eat L.Diamond
+    ]
 
-(* p_id : string p *)
-fun p_id nil = NO (Region.botloc,fn () => "expecting identifier but found end-of-file")
-  | p_id ((L.Id id,r)::ts) = OK(id,r,ts)
-  | p_id ((t,r:reg)::_) = NO (#1 r,fn() => ("expecting identifier but found token " ^ AplLex.pr_token t))
+fun p_id () : string p =
+    next >>= (fn L.Id id => accept id
+               | t => reject ("expecting identifier but found token " ^ AplLex.pr_token t))
 
-(* p_quad : string p *)
-fun p_quad nil = NO (Region.botloc,fn () => "expecting Quad or identifier but found end-of-file")
-  | p_quad ((L.Quad,r)::ts) = OK("$Quad",r,ts)
-  | p_quad ((t,r:reg)::_) = NO (#1 r,fn() => ("expecting Quad or identifier but found token " ^ AplLex.pr_token t))
+fun p_quad () : string p =
+    next >>= (fn L.Quad => accept "$Quad"
+               | t => reject ("expecting Quad or identifier  but found token " ^ AplLex.pr_token t))
 
-(* p_double : double p *)
-fun p_double nil = NO (Region.botloc,fn () => "expecting double but found end-of-file")
-  | p_double ((L.Double d,r)::ts) = OK(d,r,ts)
-  | p_double ((t,r:reg)::_) = NO (#1 r, fn() => ("expecting double but found token " ^ AplLex.pr_token t))
+fun p_double () : string p =
+    next >>= (fn L.Double d => accept d
+               | t => reject ("expecting double but found token " ^ AplLex.pr_token t))
 
-(* p_complex : complex p *)
-fun p_complex nil = NO (Region.botloc,fn () => "expecting complex number but found end-of-file")
-  | p_complex ((L.Complex d,r)::ts) = OK(d,r,ts)
-  | p_complex ((t,r:reg)::_) = NO (#1 r, fn() => ("expecting complex number but found token " ^ AplLex.pr_token t))
+fun p_complex () : string p =
+    next >>= (fn L.Complex d => accept d
+               | t => reject ("expecting complex number but found token " ^ AplLex.pr_token t))
 
-(* p_int : int p *)
-fun p_int nil = NO (Region.botloc,fn () => "expecting integer but found end-of-file")
-  | p_int ((L.Int i,r)::ts) = OK(i,r,ts)
-  | p_int ((t,r:reg)::_) = NO (#1 r, fn() => ("expecting integer but found token " ^ AplLex.pr_token t))
+fun p_int () : string p =
+    next >>= (fn L.Int i => accept i
+               | t => reject ("expecting integer but found token " ^ AplLex.pr_token t))
 
-(* p_string : word list p *)
-fun p_string nil = NO (Region.botloc,fn () => "expecting string but found end-of-file")
-  | p_string ((L.Chars ws,r)::ts) = OK(ws,r,ts)
-  | p_string ((t,r:reg)::_) = NO (#1 r, fn() => ("expecting string but found token " ^ AplLex.pr_token t))
+fun p_string () : word list p =
+    next >>= (fn L.Chars ws => accept ws
+               | t => reject ("expecting string but found token " ^ AplLex.pr_token t))
 
 (* is_symb : Lexer.token -> bool *)
 fun is_symb t =
@@ -115,13 +117,10 @@ fun is_symb t =
     | L.Thorn => true
     | _ => false
 
-(* p_symb : token p *)
-fun p_symb nil = NO (Region.botloc,fn()=>"reached end-of-file")
-  | p_symb ((t,r:reg)::ts) =
-    if is_symb t then OK(t,r,ts)
-    else NO (#1 r,
-             fn () => ("expecting symbol but found token " ^
-                       AplLex.pr_token t))
+fun p_symb () : token p =
+    next >>= (fn t => if is_symb t then accept t
+                      else reject ("expecting symbol but found token " ^
+                                   AplLex.pr_token t))
 
 (* APL Parsing *)
 
@@ -163,55 +162,56 @@ fun unres (UnresE (es1,r1), UnresE (es2,r2)) = UnresE(es1@es2,Region.plus "unres
   | unres (e1,e2) = UnresE([e1,e2],Region.plus "unres4" (reg_exp e1)(reg_exp e2))
 
 (* exp parsers *)
-fun p_body ts =
-    (((((p_guard ?? (p_sep ->> p_body)) seq) ?? p_ws) #1)
-     || (p_sep ->> p_body)) ts
 
-and p_guard ts =
-    (p_expr ??? (eat L.Colon ->> p_expr)) GuardE ts
+fun p_body () : exp p =
+    choice [
+      (((%p_guard ?? (p_sep *> %p_body)) seq) ?? %p_ws) #1,
+      (p_sep *> %p_body)
+    ]
 
-and p_expr ts =
-    (  p_assignment
-    || (p_seq ?? p_assignment) seq
-    ) ts
+and p_guard () : exp p =
+    (%p_expr ??? (eat L.Colon *> %p_expr)) GuardE
 
-and p_assignment ts =
-    ( ((((p_id || p_quad) oo (fn x => (x,nil))) ?? p_sqindices) (fn ((x,_),xs) => (x,xs))) >>-
-      eat L.Larrow >>> p_expr oor (fn (((x,xs),b),r) => AssignE(x,xs,b,r)) ) ts
+and p_expr () : exp p =
+    choice [
+      %p_assignment,
+      (%p_seq ?? %p_assignment) seq
+    ]
 
-and p_seq ts =
-    (p_item ?? p_seq) unres ts
+and p_assignment () : exp p =
+    (fn (((x,xs),b),r) => AssignE(x,xs,b,r)) <$$>
+    ((((  ( (fn x => (x,nil)) <$> (%p_id <|> %p_quad) ) ?? %p_sqindices) (fn ((x,_),xs) => (x,xs))) <* eat L.Larrow)
+    >>>
+    %p_expr)
 
-and p_sqindices ts =
-    (eat L.Lsqbra ->> p_indices >>- eat L.Rsqbra) ts
+and p_seq () : exp p =
+    (%p_item ?? %p_seq) unres
 
-and p_item ts =
-    (p_indexable ??? p_sqindices) IndexE ts
+and p_sqindices () : exp option list p =
+    eat L.Lsqbra *> %p_indices <* eat L.Rsqbra
 
-and p_indices ts =
-    (  (p_expr oo (fn x => [SOME x]) ?? ((eat L.Semicolon ->> p_indices) || (eat L.Semicolon oo (fn() => [NONE])))) (op @)
-    || (eat L.Semicolon oo (fn () => [NONE]) ?? p_indices) (op @)
-    ) ts
+and p_item () : exp p =
+    (%p_indexable ??? %p_sqindices) IndexE
 
-and p_indexable ts =
-    (  (p_int oor IntE)
-    || (p_double oor DoubleE)
-    || (p_complex oor ComplexE)
-    || (p_string oor StrE)
-    || (p_symb oor (fn (a,r) => IdE(Symb a,r)))
-    || (p_id oor (fn (a,r) => IdE(Var a,r)))
-    || ((eat L.Lpar ->> p_expr >>- eat L.Rpar) oor ParE)
-    || ((eat L.Lbra ->> p_body >>- eat L.Rbra) oor (fn (e,r) => LambE((~1,~1),e,r)))
-    ) ts
+and p_indices () : exp option list p =
+    choice [
+      (((fn x => [SOME x]) <$> %p_expr) ?? ((eat L.Semicolon *> %p_indices) <|> ((fn () => [NONE]) <$> eat L.Semicolon))) (op @),
+      ((fn () => [NONE]) <$> eat L.Semicolon ?? %p_indices) (op @)
+    ]
+
+and p_indexable () : exp p  =
+    choice [IntE <$$> %p_int,
+            DoubleE <$$> %p_double,
+            ComplexE <$$> %p_complex,
+            StrE <$$> %p_string,
+            (fn (a,r) => IdE(Symb a,r)) <$$> %p_symb,
+            (fn (a,r) => IdE(Var a,r)) <$$> %p_id,
+            ParE <$$> (eat L.Lpar *> %p_expr <* eat L.Rpar),
+            (fn (e,r) => LambE((~1,~1),e,r)) <$$> (eat L.Lbra *> %p_body <* eat L.Rbra)
+           ]
 
 (* parse0 : (token * reg) list -> (exp, locerr) either *)
-fun parse0 ts =
-    case p_body ts of
-      OK(ast,r,ts) =>
-      (case ts of nil => OK ast
-                | ((t,r)::_) => NO (#1 r, fn() => ("token " ^ AplLex.pr_token t
-                                                   ^ " not expected")))
-    | NO l => NO l
+fun parse0 ts = parse (%p_body) ts
 
 structure Class = struct
 
@@ -460,10 +460,14 @@ and app2((e1,_),(e2,_),(e3,_)) =
     let val r1 = reg_exp e1
         val r2 = reg_exp e2
         val r3 = reg_exp e3
-        val r = if r2 = botreg then
-                  if r3 = botreg then r1
+        fun isEmp r =
+            case Region.unReg r of
+                NONE => true
+              | _ => false
+        val r = if isEmp r2 then
+                  if isEmp r3 then r1
                   else Region.plus "app2.1" r1 r3
-                else if r3 = botreg then Region.plus "app2.2" r2 r1
+                else if isEmp r3 then Region.plus "app2.2" r2 r1
                 else Region.plus "app2" r2 r3
     in (App2E(e1,e2,e3,r),valuespec)
     end

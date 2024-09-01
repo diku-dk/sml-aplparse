@@ -419,6 +419,6 @@ fun pr_tokens ts = String.concatWith " " (List.map pr_token ts)
 fun lex srcname s =
     let val s = Utf8.fromString (s^" ")  (* pad some whitespace to keep the lexer happy *)
         val (tokens,state,_) = Utf8.foldl process0 (nil,StartS,Region.loc0 srcname) s
-    in rev tokens
+    in map (fn (t,ll) => (t,Region.mkReg ll)) (rev tokens)
     end
 end
