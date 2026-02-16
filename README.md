@@ -91,6 +91,10 @@ parses into the following abstract syntax tree (pretty printed):
 The test parses the APL programs in the
 [`tests`](lib/github.com/diku-dk/sml-aplparse/test/tests) directory.
 
+The library is used for [`apltail`](https://github.com/melsman/apltail), a
+compiler and interpreter for APL, based on a [typed array intermediate language](http://elsman.com/pdf/array14_final.pdf) [1]. The compiler compiles APL to
+C.
+
 ## Limitations
 
 Todo: improved error handling. Although position information is now
@@ -100,3 +104,12 @@ relevant position information.
 ## Authors
 
 Copyright (c) 2015-2021 Martin Elsman, Martin Dybdal, University of Copenhagen.
+
+## References
+
+[1] Martin Elsman and Martin Dybdal. __Compiling a Subset of APL Into
+a Typed Intermediate Language__. In _ACM SIGPLAN International
+Workshop on Libraries, Languages and Compilers for Array Programming
+(ARRAY'14)_. Edinburgh, UK. June,
+2014. [pdf](http://elsman.com/pdf/array14_final.pdf),
+[bibtex](http://elsman.com//pdf/array14_final.bibtex.txt).
